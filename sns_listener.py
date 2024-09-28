@@ -12,7 +12,17 @@ app = Flask(__name__)
 def sns_listener():
     message = json.loads(request.data)
     print(f"Received SNS message: {message}")
-    #return jsonify({'status': 'success'}), 200
+
+    # Handle subscription confirmation
+    if message.get('Type') == 'SubscriptionConfirmation' and 'SubscribeURL' in message:
+        subscribe_url = message['SubscribeURL']
+        response = requests.get(subscribe_url)
+        if response.status_code == 200:
+            print("Subscription confirmed.")
+        else:
+            print("Failed to confirm subscription.")
+        return jsonify({'status': 'subscription confirmed'}), 200
+
 
     # Create a CloudEvent
     attributes = {
