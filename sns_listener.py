@@ -11,7 +11,7 @@ app = Flask(__name__)
 @app.route('/sns-listener', methods=['POST'])
 def sns_listener():
     message = json.loads(request.data)
-    print("Received SNS message:" message)
+    print("Received SNS message:", message)
 
     # Handle subscription confirmation
     if message.get('Type') == 'SubscriptionConfirmation' and 'SubscribeURL' in message:
