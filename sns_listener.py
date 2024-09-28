@@ -28,6 +28,9 @@ def sns_listener():
     attributes = {
         "type": "com.amazon.sns.message",
         "source": "aws:sns",
+        "id": message.get('MessageId', ''),
+        "time": message.get('Timestamp', ''),
+        "datacontenttype": "application/json"
     }
     data = {
         "message": message
@@ -37,14 +40,20 @@ def sns_listener():
     # Convert CloudEvent to structured format
     headers, body = to_structured(event)
 
+    # Set the required headers for Knative Eventing Broker
+    headers['Ce-Specversion'] = '1.0'
+    headers['Ce-Type'] = attributes['type']
+    headers['Ce-Source'] = attributes['source']
+    headers['Ce-Id'] = attributes['id']
+    headers['Ce-Time'] = attributes['time']
+    headers['Content-Type'] = 'application/cloudevents+json'
+
     # Get the K_SINK endpoint from the environment variable
     k_sink = os.getenv('K_SINK')
     if not k_sink:
-        print("K_SINK not set")
         return jsonify({'error': 'K_SINK environment variable not set'}), 500
 
     # Post the CloudEvent to the K_SINK endpoint
-    print("K_SINK is", k_sink)
     response = requests.post(k_sink, headers=headers, data=body)
     if response.status_code != 200:
         print("Failed to post CloudEvent")
@@ -53,8 +62,6 @@ def sns_listener():
         return jsonify({'error': 'Failed to post CloudEvent'}), 500
 
     print("Successfully posted CloudEvent")
-    print("Headers:", headers)
-    print("Data:", body)
     return jsonify({'status': 'success'}), 200
 
 if __name__ == '__main__':
