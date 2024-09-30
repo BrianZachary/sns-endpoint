@@ -1,68 +1,30 @@
-import json
-import os
-import requests
-import boto3
 from flask import Flask, request, jsonify
-from cloudevents.http import CloudEvent
-from cloudevents.conversion import to_structured
+import boto3
+import json
 
 app = Flask(__name__)
 
+# Initialize the SNS client
+sns_client = boto3.client('sns')
+
 @app.route('/sns-listener', methods=['POST'])
 def sns_listener():
-    message = json.loads(request.data)
-    print("Received SNS message:", message)
+    # Parse the incoming SNS message
+    message_type = request.headers.get('x-amz-sns-message-type')
+    message = request.get_json()
 
     # Handle subscription confirmation
-    if message.get('Type') == 'SubscriptionConfirmation' and 'SubscribeURL' in message:
-        subscribe_url = message['SubscribeURL']
-        response = requests.get(subscribe_url)
-        if response.status_code == 200:
-            print("Subscription confirmed.")
-        else:
-            print("Failed to confirm subscription.")
-        return jsonify({'status': 'subscription confirmed'}), 200
+    if message_type == 'SubscriptionConfirmation':
+        # Confirm the subscription
+        token = message['Token']
+        topic_arn = message['TopicArn']
+        sns_client.confirm_subscription(TopicArn=topic_arn, Token=token)
+        print(f"Subscription confirmed for topic {topic_arn}")
+    elif message_type == 'Notification':
+        # Print the SNS message
+        print(f"Message received: {json.dumps(message, indent=2)}")
 
-
-    # Create a CloudEvent
-    attributes = {
-        "type": "com.amazon.sns.message",
-        "source": "aws:sns",
-        "id": message.get('MessageId', ''),
-        "time": message.get('Timestamp', ''),
-        "datacontenttype": "application/json"
-    }
-    data = {
-        "message": message
-    }
-    event = CloudEvent(attributes, data)
-
-    # Convert CloudEvent to structured format
-    headers, body = to_structured(event)
-
-    # Set the required headers for Knative Eventing Broker
-    headers['Ce-Specversion'] = '1.0'
-    headers['Ce-Type'] = attributes['type']
-    headers['Ce-Source'] = attributes['source']
-    headers['Ce-Id'] = attributes['id']
-    headers['Ce-Time'] = attributes['time']
-    headers['Content-Type'] = 'application/cloudevents+json'
-
-    # Get the K_SINK endpoint from the environment variable
-    k_sink = os.getenv('K_SINK')
-    if not k_sink:
-        return jsonify({'error': 'K_SINK environment variable not set'}), 500
-
-    # Post the CloudEvent to the K_SINK endpoint
-    response = requests.post(k_sink, headers=headers, data=body)
-    if response.status_code != 200:
-        print("Failed to post CloudEvent")
-        print("Headers:", headers)
-        print("Data:", body)
-        return jsonify({'error': 'Failed to post CloudEvent'}), 500
-
-    print("Successfully posted CloudEvent")
     return jsonify({'status': 'success'}), 200
-
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
