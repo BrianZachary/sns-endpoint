@@ -19,10 +19,15 @@ def sns_listener():
         response = requests.get(subscribe_url)
         if response.status_code == 200:
             print("Subscription confirmed.")
+            return jsonify({'status': 'subscription confirmed'}), 200
         else:
             print("Failed to confirm subscription.")
-        return jsonify({'status': 'subscription confirmed'}), 200
 
+    # Print the message
+    if message.get('Type') == 'Notification':
+        print("Message body:", message.get('Message'))
+        sys.stdout.flush()
+        return jsonify({'status': 'message received'}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
