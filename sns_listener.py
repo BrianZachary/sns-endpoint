@@ -12,6 +12,7 @@ app = Flask(__name__)
 def sns_listener():
     message = json.loads(request.data)
     print("Received SNS message:", message)
+    sys.stdout.flush()
 
     # Handle subscription confirmation
     if message.get('Type') == 'SubscriptionConfirmation' and 'SubscribeURL' in message:
@@ -19,9 +20,11 @@ def sns_listener():
         response = requests.get(subscribe_url)
         if response.status_code == 200:
             print("Subscription confirmed.")
+            sys.stdout.flush()
             return jsonify({'status': 'subscription confirmed'}), 200
         else:
             print("Failed to confirm subscription.")
+            sys.stdout.flush()
 
     # Print the message
     if message.get('Type') == 'Notification':
