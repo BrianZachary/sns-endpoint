@@ -5,7 +5,7 @@ import json
 app = Flask(__name__)
 
 # Initialize the SNS client
-sns_client = boto3.client('sns')
+sns_client = boto3.client('sns', region_name='us-east-2')
 
 @app.route('/sns-listener', methods=['POST'])
 def sns_listener():
